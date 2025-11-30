@@ -1,0 +1,6 @@
+dependencies:
+- name: open-webui
+  repository: file://charts/open-webui
+  version: 0.1.0
+digest: sha256:633b289eaf51a55775f991e6f538a4195a9e9a86f760fbb0592499a2104b2258
+generated: "2025-11-29T16:04:37.17811-08:00"

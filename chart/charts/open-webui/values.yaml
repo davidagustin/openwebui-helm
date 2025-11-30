@@ -1,0 +1,143 @@
+# Default values for open-webui
+replicaCount: 1
+
+image:
+  repository: ghcr.io/open-webui/open-webui
+  pullPolicy: IfNotPresent
+  tag: "ollama"  # Use ollama tag to include Ollama bundled with Open WebUI
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  # Mac/k3d: fsGroup ensures volumes are accessible by the container
+  # Use 1000 (common non-root user) or match your Mac user's UID
+  # Check your Mac UID with: id -u
+  fsGroup: 1000
+
+securityContext:
+  # Mac: Prefer running as non-root for better security
+  # Note: Some containers require root - check Open WebUI docs
+  # runAsNonRoot: true
+  # runAsUser: 1000
+  # AllowPrivilegeEscalation: false
+  # capabilities:
+  #   drop:
+  #     - ALL
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: openwebui.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  requests:
+    cpu: 250m  # Lower for Mac development
+    memory: 512Mi  # Lower for Mac development
+
+livenessProbe:
+  httpGet:
+    path: /api/v1/health
+    port: http
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /api/v1/health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+# Persistence for Open WebUI data
+# For Mac/k3d: uses local-path storage class
+persistence:
+  enabled: true
+  storageClass: "local-path"  # k3d default storage class
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  mountPath: /app/backend/data
+
+# Environment variables for Open WebUI
+env:
+  # Set Llama 3 as the default model
+  # Model name should match the model available in Ollama (e.g., "llama3", "llama3:8b", "llama3:70b")
+  # Note: With the "ollama" image tag, Ollama is bundled. The model will need to be pulled
+  # through the Open WebUI interface on first use, or you can pre-pull it.
+  - name: DEFAULT_MODEL
+    value: "llama3"
+  
+  # Ollama configuration
+  # OLLAMA_BASE_URL: URL to your Ollama instance (default: http://localhost:11434)
+  # With the "ollama" image tag, Ollama runs bundled, so this is typically not needed
+  # If using a separate Ollama instance, uncomment and set:
+  # - name: OLLAMA_BASE_URL
+  #   value: "http://ollama-service:11434"
+  
+  # Security configuration
+  # Generate a secret key: openssl rand -hex 32
+  # - name: WEBUI_SECRET_KEY
+  #   value: "your-secret-key-here"
+  
+  # Authentication (set to "true" to enable authentication)
+  # - name: WEBUI_AUTH
+  #   value: "true"
+  
+  # CORS configuration for Mac local development
+  # Allows localhost access from various ports commonly used on Mac
+  - name: CORS_ALLOW_ORIGINS
+    value: "http://localhost:8080,http://localhost:3000,http://127.0.0.1:8080,http://localhost:5173,http://localhost:5174"
+  
+  # Mac-specific: Enable development mode features
+  - name: ENV
+    value: "development"
+  
+  # User agent for API requests
+  - name: USER_AGENT
+    value: "Open-WebUI/0.6.40"
+  
+  # Additional configuration options
+  # - name: ENABLE_SIGNUP
+  #   value: "true"
+  # - name: DEFAULT_USER_ROLE
+  #   value: "user"
+
+volumes: []
+volumeMounts: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

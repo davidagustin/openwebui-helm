@@ -1,0 +1,225 @@
+version: '3'
+
+vars:
+  RELEASE_NAME: openwebui
+  NAMESPACE: openwebui
+  CHART_PATH: ./chart
+  PORT: 8080
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  # Installation tasks
+  install:
+    desc: Install the Open WebUI Helm chart
+    cmds:
+      - helm install {{.RELEASE_NAME}} {{.CHART_PATH}} --namespace {{.NAMESPACE}} --create-namespace
+
+  upgrade:
+    desc: Upgrade the Open WebUI Helm chart
+    cmds:
+      - helm upgrade {{.RELEASE_NAME}} {{.CHART_PATH}} --namespace {{.NAMESPACE}}
+
+  upgrade:force:
+    desc: Force upgrade the Helm chart (useful for troubleshooting)
+    cmds:
+      - helm upgrade {{.RELEASE_NAME}} {{.CHART_PATH}} --namespace {{.NAMESPACE}} --force
+
+  uninstall:
+    desc: Uninstall the Open WebUI Helm chart
+    cmds:
+      - helm uninstall {{.RELEASE_NAME}} --namespace {{.NAMESPACE}}
+
+  # Development tasks
+  lint:
+    desc: Lint the Helm chart
+    cmds:
+      - helm lint {{.CHART_PATH}}
+
+  template:
+    desc: Render Helm chart templates (dry-run)
+    cmds:
+      - helm template {{.RELEASE_NAME}} {{.CHART_PATH}} --namespace {{.NAMESPACE}}
+
+  template:debug:
+    desc: Render Helm chart templates with debug output
+    cmds:
+      - helm template {{.RELEASE_NAME}} {{.CHART_PATH}} --namespace {{.NAMESPACE}} --debug
+
+  dependency:update:
+    desc: Update Helm chart dependencies
+    cmds:
+      - helm dependency update {{.CHART_PATH}}
+
+  dependency:build:
+    desc: Build Helm chart dependencies
+    cmds:
+      - helm dependency build {{.CHART_PATH}}
+
+  # Status and monitoring tasks
+  status:
+    desc: Check deployment status
+    cmds:
+      - echo "=== Helm Release Status ==="
+      - helm status {{.RELEASE_NAME}} --namespace {{.NAMESPACE}}
+      - echo ""
+      - echo "=== Pod Status ==="
+      - kubectl get pods -l "app.kubernetes.io/name=open-webui,app.kubernetes.io/instance={{.RELEASE_NAME}}" -n {{.NAMESPACE}}
+      - echo ""
+      - echo "=== Service Status ==="
+      - kubectl get svc -l "app.kubernetes.io/name=open-webui,app.kubernetes.io/instance={{.RELEASE_NAME}}" -n {{.NAMESPACE}}
+
+  logs:
+    desc: View pod logs
+    cmds:
+      - kubectl logs -l "app.kubernetes.io/name=open-webui,app.kubernetes.io/instance={{.RELEASE_NAME}}" -n {{.NAMESPACE}} --tail=50 -f
+
+  logs:all:
+    desc: View all pod logs (including previous containers)
+    cmds:
+      - kubectl logs -l "app.kubernetes.io/name=open-webui,app.kubernetes.io/instance={{.RELEASE_NAME}}" -n {{.NAMESPACE}} --tail=100 --previous
+
+  describe:
+    desc: Describe the deployment
+    cmds:
+      - kubectl describe deployment -l "app.kubernetes.io/name=open-webui,app.kubernetes.io/instance={{.RELEASE_NAME}}" -n {{.NAMESPACE}}
+
+  # Port forwarding tasks
+  port-forward:
+    desc: Port forward to the Open WebUI service
+    cmds:
+      - |
+        POD_NAME=$(kubectl get pods -l "app.kubernetes.io/name=open-webui,app.kubernetes.io/instance={{.RELEASE_NAME}}" -n {{.NAMESPACE}} -o jsonpath='{.items[0].metadata.name}')
+        echo "Port forwarding to pod: $POD_NAME"
+        echo "Access Open WebUI at: http://localhost:{{.PORT}}"
+        kubectl port-forward $POD_NAME {{.PORT}}:{{.PORT}} -n {{.NAMESPACE}}
+
+  port-forward:service:
+    desc: Port forward to the service (alternative method)
+    cmds:
+      - |
+        SERVICE_NAME=$(kubectl get svc -l "app.kubernetes.io/name=open-webui,app.kubernetes.io/instance={{.RELEASE_NAME}}" -n {{.NAMESPACE}} -o jsonpath='{.items[0].metadata.name}')
+        echo "Port forwarding to service: $SERVICE_NAME"
+        echo "Access Open WebUI at: http://localhost:{{.PORT}}"
+        kubectl port-forward svc/$SERVICE_NAME {{.PORT}}:{{.PORT}} -n {{.NAMESPACE}}
+
+  # Health check tasks
+  health:
+    desc: Check if the deployment is healthy
+    cmds:
+      - |
+        echo "Checking pod readiness..."
+        kubectl wait --for=condition=ready pod -l "app.kubernetes.io/name=open-webui,app.kubernetes.io/instance={{.RELEASE_NAME}}" -n {{.NAMESPACE}} --timeout=120s
+        echo "✓ Pod is ready!"
+
+  health:check:
+    desc: Check health endpoint
+    cmds:
+      - |
+        POD_NAME=$(kubectl get pods -l "app.kubernetes.io/name=open-webui,app.kubernetes.io/instance={{.RELEASE_NAME}}" -n {{.NAMESPACE}} -o jsonpath='{.items[0].metadata.name}')
+        echo "Checking health endpoint on pod: $POD_NAME"
+        kubectl exec $POD_NAME -n {{.NAMESPACE}} -- wget -q -O- http://localhost:{{.PORT}}/api/v1/health || echo "Health check failed or endpoint not ready"
+
+  # Pod management tasks
+  exec:
+    desc: Execute a shell in the pod
+    cmds:
+      - |
+        POD_NAME=$(kubectl get pods -l "app.kubernetes.io/name=open-webui,app.kubernetes.io/instance={{.RELEASE_NAME}}" -n {{.NAMESPACE}} -o jsonpath='{.items[0].metadata.name}')
+        kubectl exec -it $POD_NAME -n {{.NAMESPACE}} -- /bin/sh
+
+  restart:
+    desc: Restart the deployment
+    cmds:
+      - kubectl rollout restart deployment -l "app.kubernetes.io/name=open-webui,app.kubernetes.io/instance={{.RELEASE_NAME}}" -n {{.NAMESPACE}}
+
+  # Cleanup tasks
+  clean:
+    desc: Clean up failed pods
+    cmds:
+      - kubectl delete pods -l "app.kubernetes.io/name=open-webui,app.kubernetes.io/instance={{.RELEASE_NAME}}" -n {{.NAMESPACE}} --field-selector=status.phase=Failed
+
+  # Configuration tasks
+  values:
+    desc: Show current values
+    cmds:
+      - helm get values {{.RELEASE_NAME}} --namespace {{.NAMESPACE}}
+
+  values:all:
+    desc: Show all values (including computed)
+    cmds:
+      - helm get values {{.RELEASE_NAME}} --namespace {{.NAMESPACE}} --all
+
+  # Mac-specific tasks
+  k3d:create:
+    desc: Create k3d cluster using k3d-config.yaml
+    cmds:
+      - echo "Creating k3d cluster 'openwebui'..."
+      - mkdir -p ~/.k3d/openwebui-storage
+      - |
+        k3d cluster create --config k3d-config.yaml \
+          --k3s-arg "--disable=traefik@server:0" \
+          --k3s-arg "--write-kubeconfig-mode=644@server:0" \
+          --k3s-arg "--tls-san=localhost@server:0" \
+          --k3s-arg "--tls-san=127.0.0.1@server:0" \
+          --k3s-arg "--tls-san=k3d-openwebui-server-0@server:0"
+      - echo "✓ Cluster created! Waiting for it to be ready..."
+      - kubectl wait --for=condition=ready node --all --timeout=60s
+      - echo "✓ Cluster is ready!"
+      - echo ""
+      - echo "Next steps:"
+      - echo "  1. Run 'task deploy' to install Open WebUI"
+      - echo "  2. Run 'task port-forward' to access the UI"
+
+  k3d:delete:
+    desc: Delete the k3d cluster
+    cmds:
+      - echo "Deleting k3d cluster 'openwebui'..."
+      - k3d cluster delete openwebui
+      - echo "✓ Cluster deleted!"
+
+  k3d:list:
+    desc: List k3d clusters
+    cmds:
+      - k3d cluster list
+
+  mac:setup:
+    desc: Setup for Mac environment (k3d)
+    cmds:
+      - echo "Chart configured for Mac/k3d with local-path storage"
+      - kubectl get storageclass
+      - kubectl get pods -l "app.kubernetes.io/name=open-webui" -n {{.NAMESPACE}}
+
+  # Conflict detection
+  conflicts:
+    desc: Detect conflicts (ports, resources, duplicates)
+    cmds:
+      - ./detect-conflicts.sh
+
+  # Quick start workflow
+  dev:
+    desc: Quick development workflow (lint, upgrade, status)
+    cmds:
+      - task lint
+      - task dependency:update
+      - task upgrade
+      - task status
+      - echo ""
+      - echo "✓ Deployment complete! Use 'task port-forward' to access Open WebUI"
+
+  # Full workflow
+  deploy:
+    desc: Full deployment workflow
+    cmds:
+      - task lint
+      - task dependency:update
+      - task install
+      - task health
+      - task status
+      - echo ""
+      - echo "✓ Deployment complete!"
+      - echo "Use 'task port-forward' to access Open WebUI at http://localhost:{{.PORT}}"
+

@@ -1,0 +1,92 @@
+# Default values for openwebui-wrapper
+# This is a YAML-formatted file.
+
+# Global values that can be shared across subcharts
+global: {}
+  # Add global configurations here if needed
+
+# Open WebUI subchart configuration
+open-webui:
+  enabled: true
+  
+  # Image configuration
+  image:
+    repository: ghcr.io/open-webui/open-webui
+    tag: "ollama"  # Use ollama tag to include Ollama bundled with Open WebUI
+    pullPolicy: IfNotPresent
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8080
+  
+  # Ingress configuration
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: openwebui.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+  
+  # Resource limits and requests
+  # Optimized for Mac development environment
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 250m  # Lower for Mac development
+      memory: 512Mi  # Lower for Mac development
+  
+  # Replica count
+  replicaCount: 1
+  
+  # Persistence for data
+  # For Mac/k3d: uses local-path storage class
+  persistence:
+    enabled: true
+    storageClass: "local-path"  # k3d default storage class
+    accessMode: ReadWriteOnce
+    size: 10Gi
+  
+  # Environment variables
+  env:
+    # Set Llama 3 as the default model
+    # Model name should match the model available in Ollama (e.g., "llama3", "llama3:8b", "llama3:70b")
+    - name: DEFAULT_MODEL
+      value: "llama3"
+    
+    # User agent for API requests
+    - name: USER_AGENT
+      value: "Open-WebUI/0.6.40"
+    
+    # Ollama configuration (uncomment and configure if Ollama is in a different service)
+    # - name: OLLAMA_BASE_URL
+    #   value: "http://ollama-service:11434"
+    
+    # Security configuration (uncomment and set your secret key)
+    # Generate with: openssl rand -hex 32
+    # - name: WEBUI_SECRET_KEY
+    #   value: "your-secret-key-here"
+    
+    # Authentication (uncomment to enable)
+    # - name: WEBUI_AUTH
+    #   value: "true"
+    
+    # CORS configuration for Mac local development
+    # Allows localhost access from various ports commonly used on Mac
+    - name: CORS_ALLOW_ORIGINS
+      value: "http://localhost:8080,http://localhost:3000,http://127.0.0.1:8080,http://localhost:5173,http://localhost:5174"
+    
+    # Mac-specific: Enable development mode features
+    - name: ENV
+      value: "development"
+  
+  # Additional configuration
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}

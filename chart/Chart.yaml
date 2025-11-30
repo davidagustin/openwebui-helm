@@ -1,0 +1,14 @@
+apiVersion: v2
+name: openwebui-wrapper
+description: A wrapper Helm chart for Open WebUI
+
+type: application
+
+version: 0.1.0
+appVersion: "1.0.0"
+
+dependencies:
+  - name: open-webui
+    version: "0.1.0"
+    repository: "file://charts/open-webui"
+    condition: open-webui.enabled

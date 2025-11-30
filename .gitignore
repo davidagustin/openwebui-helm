@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Helm packaged charts
+*.tgz
+
+# Helm lock files (optional - some teams commit these, others don't)
+# Chart.lock
+
+# Temporary files
+*.tmp
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+

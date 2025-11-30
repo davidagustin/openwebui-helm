@@ -1,0 +1,38 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: openwebui
+servers: 1
+agents: 0
+
+# Port mappings for Mac development
+# Note: The port-forward.sh script forwards directly to pods, so port mappings are optional
+# If you want to use k3d's loadbalancer instead of port-forward, uncomment:
+# ports:
+#   - port: 8080:8080  # Open WebUI service port (matches service.port in values.yaml)
+#     nodeFilters:
+#       - loadbalancer
+
+# Mac-specific: Volume mounts for persistent data
+volumes:
+  # Mount a local directory for persistent storage
+  # This helps with file permissions on Mac
+  - volume: ${HOME}/.k3d/openwebui-storage:/var/lib/rancher/k3s/storage
+    nodeFilters:
+      - server:0
+
+# Environment variables for the cluster
+env:
+  # Mac: Set proper permissions for volumes
+  - envVar: K3S_KUBECONFIG_MODE=644
+    nodeFilters:
+      - server:0
+
+# Cluster options
+options:
+  k3d:
+    # Wait for cluster to be ready
+    wait: true
+    timeout: "60s"
+    # Keep load balancer for potential future use
+    disableLoadbalancer: false
